@@ -1,6 +1,16 @@
+name: Deploy Project
+
+# Trigger the workflow
+on:
+  push:
+    branches:
+      - main     # jab main branch me push ho
+  workflow_dispatch:  # manual trigger ke liye bhi
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
 
