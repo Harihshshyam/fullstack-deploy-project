@@ -1,0 +1,38 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main  # Jab bhi main branch me push ho
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest  # Workflow ka runner
+
+    steps:
+      - uses: actions/checkout@v3  # Repo clone hota hai runner pe
+
+      - name: Build & Push Docker Images
+        run: |
+          # Frontend Docker build
+          docker build -t sagar592/frontend ./frontend
+          # Backend Docker build
+          docker build -t sagar592/backend ./backend
+          # DockerHub login using secrets
+          echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+          # Push images to DockerHub
+          docker push sagar592/frontend
+          docker push sagar592/backend
+
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}  # Server IP
+          username: ubuntu  # Server user
+          key: ${{ secrets.SERVER_KEY }}  # SSH private key
+          script: |
+            docker pull sagar592/frontend
+            docker pull sagar592/backend
+            cd ~/project
+            docker-compose down
+            docker-compose up -d --build
