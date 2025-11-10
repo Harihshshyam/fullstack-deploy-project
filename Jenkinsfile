@@ -2,36 +2,37 @@ pipeline {
     agent any
 
     environment {
-        SERVER_IP = "15.207.30.60"
-        IMAGE_NAME = "myapp"
-        DOCKER_USER = "sagar592"   // apna DockerHub username
+        DOCKERHUB_USER = credentials('dockerhub-username')
+        DOCKERHUB_PASS = credentials('dockerhub-password')
+        DEPLOY_SERVER = '15.207.30.60'      // <-- yahan apna EC2 IP likho
+        IMAGE_NAME = 'harishyam/fullstack'  // <-- yahan apna DockerHub repo name likho
     }
 
     stages {
 
-        stage('Clone Repository') {
+        stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/harihshshyam/fullstack-deploy-project.git'
+                echo '🔹 Cloning the repository...'
+                checkout scm
             }
         }
 
         stage('Build Docker Image') {
             steps {
+                echo '🔹 Building Docker image...'
                 sh '''
-                echo "🔨 Building Docker Image..."
-                docker build -t $IMAGE_NAME:latest .
+                    docker build -t $IMAGE_NAME:latest .
                 '''
             }
         }
 
         stage('Push to DockerHub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
+                echo '🔹 Pushing Docker image to DockerHub...'
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
                     sh '''
-                    echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
-                    docker tag $IMAGE_NAME:latest $DOCKERHUB_USER/$IMAGE_NAME:latest
-                    docker push $DOCKERHUB_USER/$IMAGE_NAME:latest
-                    docker logout
+                        echo "$PASS" | docker login -u "$USER" --password-stdin
+                        docker push $IMAGE_NAME:latest
                     '''
                 }
             }
@@ -39,19 +40,27 @@ pipeline {
 
         stage('Deploy on EC2 Server') {
             steps {
+                echo '🔹 Deploying container on EC2...'
                 sshagent(['server-key']) {
                     sh '''
-                    echo "🚀 Deploying on EC2 Server..."
-                    ssh -o StrictHostKeyChecking=no ubuntu@$SERVER_IP '
-                        sudo docker pull $DOCKER_USER/$IMAGE_NAME:latest &&
-                        sudo docker stop myapp || true &&
-                        sudo docker rm myapp || true &&
-                        sudo docker run -d --name myapp -p 80:80 $DOCKER_USER/$IMAGE_NAME:latest
-                    '
-                    echo "✅ Deployment Completed Successfully!"
+                        ssh -o StrictHostKeyChecking=no ubuntu@$DEPLOY_SERVER '
+                            docker stop fullstack || true &&
+                            docker rm fullstack || true &&
+                            docker pull $IMAGE_NAME:latest &&
+                            docker run -d --name fullstack -p 80:80 $IMAGE_NAME:latest
+                        '
                     '''
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ Deployment Successful!'
+        }
+        failure {
+            echo '❌ Deployment Failed. Please check logs.'
         }
     }
 }
