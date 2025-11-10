@@ -1,29 +1,10 @@
-version: '3.8'
+version: '3'
 services:
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:3000"
-    restart: always
-
   backend:
-    build: ./backend
+    image: sagar592/backend:latest
     ports:
       - "5000:5000"
-    environment:
-      - MONGO_URI=mongodb://mongo:27017/mydb
-    depends_on:
-      - mongo
-    restart: always
-
-  mongo:
-    image: mongo:6
+  frontend:
+    image: sagar592/frontend:latest
     ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
-    restart: always
-
-volumes:
-  mongo-data:
-
+      - "80:80"
